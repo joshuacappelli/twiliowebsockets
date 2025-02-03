@@ -5,7 +5,8 @@ import fastifyFormBody from '@fastify/formbody';
 import fastifyWs from '@fastify/websocket';
 import twilio from 'twilio';
 import { FastifyInstance } from 'fastify/types/instance';
-import { headers } from 'next/headers';
+
+console.log("starting index");
 
 dotenv.config();
 
@@ -18,6 +19,12 @@ const {
 
 } = process.env;
 
+console.log(TWILIO_ACCOUNT_SID);
+console.log(TWILIO_AUTH_TOKEN);
+console.log(PHONE_NUMBER_FROM);
+console.log(OPENAI_API_KEY);
+
+
 
 if (typeof rawDomain === 'undefined') {
     console.error("undefined domain");
@@ -26,15 +33,15 @@ if (typeof rawDomain === 'undefined') {
     console.log(rawDomain);
   }
 
-if( typeof PHONE_NUMBER_FROM === 'undefined') {
-    process.exit(1);
-}
+
 
 const DOMAIN = rawDomain.replace(/(^\w+:|^)\/\//, '').replace(/\/+$/, ''); // Clean protocols and slashes
 const SYSTEM_MESSAGE = 'You are a helpful AI assistant that makes phone calls to restaurants to book reservations. You currently are calling a steakhouse and you are hoping to book a reservation tonight for 8pm give or take 1 hour';
 const VOICE = 'alloy';
 const PORT = process.env.PORT || 6060;
 const outboundTwiML = `<?xml version="1.0" encoding="UTF-8"?><Response><Connect><Stream url="wss://${DOMAIN}/media-stream" /></Connect></Response>`;
+
+
 
 const LOG_EVENT_TYPES = [
     'error',
@@ -264,4 +271,32 @@ server.register(async (fastify :FastifyInstance) => {
             console.error('Error in the OpenAI WebSocket:', error);
         });
     });
+});
+
+if(typeof PORT === 'undefined' || typeof PORT === 'string') {
+    process.exit(1);
+}
+
+server.listen({ port: PORT }, (err) => {
+    if (err) {
+        console.error(err);
+        process.exit(1);
+    }
+    console.log(`Server is listening on port ${PORT}`);
+
+// Parse command-line arguments to get the phone number
+const args = process.argv.slice(2);
+const phoneNumberArg = args.find(arg => arg.startsWith('--call='));
+if (!phoneNumberArg) {
+    console.error('Please provide a phone number to call, e.g., --call=+18885551212');
+    process.exit(1);
+}
+console.log(
+    'Our recommendation is to always disclose the use of AI for outbound or inbound calls.\n'+
+    'Reminder: all of the rules of TCPA apply even if a call is made by AI \n' +
+    'Check with your counsel for legal and compliance advice.'
+);
+const phoneNumberToCall = phoneNumberArg.split('=')[1].trim();
+console.log('Calling ', phoneNumberToCall);
+makeCall(phoneNumberToCall);
 });
